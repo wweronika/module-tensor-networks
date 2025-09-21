@@ -1,6 +1,7 @@
 import numpy as np
 import opt_einsum as oe
 from collections import defaultdict
+from itertools import product
 
 # Conversion function
 def convert_to_complex(number_str):
@@ -131,11 +132,16 @@ def get_tensor_shape_for_module_quadruple(indices_list, max_tensor_size_tuple):
     
     return max_dim_map
 
+def get_d_from_H(H):
+    d = {}
+    for (A, B, C, D) in H[0].keys():
+        d[A, B] = H[0][A, B, C, D].shape[1]
+    return d 
+
 def get_allowed_module_pairs_from_H(H):
     allowed_module_pairs = set() # Horizontal, i.e. along the MPS
     allowed_vertical_module_pairs = set() # Vertical, i.e. across the virtual bond of the MPO
-    for key in H[0].keys():
-        A, B, C, D = key
+    for (A, B, C, D) in H[0].keys():
         allowed_module_pairs.add((A, B))
         allowed_module_pairs.add((C, D))
         allowed_vertical_module_pairs.add((A, C))
@@ -187,48 +193,24 @@ def get_chi_mpo_vumps(input_file, chi_CA):
 
     return chi_mpo
 
-# def get_chi_mpo_vumps(H):
-#     # Assumes H has indices (ab) (ABCD) (ijkl). Range of a must be the same as range of b.
-#     # Version for VUMPS and other algorithms with explicit upper triangular structure.
-#     # Performs consistency checks.
+def input_conversion_vumps_to_dmrg(H_vumps, chi_CA, chi_mpo, d):
+    allowed_quadruples = H_vumps[0][0].keys()
+    allowed_pairs = chi_mpo[0].keys()
 
-#     max_a = len(H)
-    
-#     # chi[a][b][(A, C)] = dim_i (vertical)
-#     chi_mpo = [defaultdict(int) for _ in range(max_a)]     
-#     # d[(A, B)] = dim_j (horizontal), independent of (a, b)
-#     d = {}
+    chi_mpo_new = {}
+    for (A, C) in allowed_pairs:
+        chi_mpo_new[A, C] = sum([chi_mpo[a][A, C] for a in range(chi_CA)])
 
-#     for a in range(max_a):
-#         for b in range(max_a):
-#             for (A, B, C, D), tensor in H[a][b].items():
-#                 if tensor is None or tensor.ndim != 4:
-#                     continue
+    H_dmrg = {}
+    for (A, B, C, D) in allowed_quadruples:
+        H_dmrg[A, B, C, D] = np.zeros((chi_mpo_new[A, C], d[A, B], d[C, D], chi_mpo_new[B, D]))
+        index_row = 0
+        index_column = 0
+        for a, b in product(range(chi_CA), repeat=2):
+            if (A, B, C, D) in H_vumps[a][b].keys():
+                H_dmrg[A, B, C, D][index_row : index_row + chi_mpo[a][A, C], :, :, index_column : index_column + chi_mpo[b][B, D]] = H_vumps[a][b][A, B, C, D][:, :, :, :]
+                index_row += chi_mpo[a][A, C]
+                index_column += chi_mpo[B][B, D]
+    return H_dmrg
+         
 
-#                 dim_i, dim_j, dim_k, dim_l = tensor.shape
-
-#                 key_vertical = (A, C)
-#                 key_horizontal = (A, B)
-
-#                 # chi[a][b][A, C] = dim_i
-#                 if key_vertical in chi_mpo[a]:
-#                     if chi_mpo[a][key_vertical] != dim_i:
-#                         raise ValueError(
-#                             f"Inconsistent chi[{a}][{key_vertical}]: {chi_mpo[a][key_vertical]} vs {dim_i}"
-#                         )
-#                 else:
-#                     chi_mpo[a][key_vertical] = dim_i
-
-#                 # d[(A, B)] = dim_j
-#                 if key_horizontal in d:
-#                     if d[key_horizontal] != dim_j:
-#                         raise ValueError(
-#                             f"Inconsistent d[{key_horizontal}]: {d[key_horizontal]} vs {dim_j}"
-#                         )
-#                 else:
-#                     d[key_horizontal] = dim_j
-
-#     # Convert chi_mpo to regular dicts
-#     chi_mpo = [dict(chi_a) for chi_a in chi_mpo]
-
-#     return chi_mpo, d

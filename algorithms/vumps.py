@@ -8,12 +8,20 @@ from util.state_initialisation import *
 from util.gauge_fixing import *
 from util.data_conversion import *
 
-H = get_H_for_vumps('input-vumps/ising_Vec_values_no_minus.txt')
+# H = get_H_for_vumps('input-vumps/ising_Vec_values_no_minus.txt')
 H = get_H_for_vumps('input-vumps/ising_RepZ2_values.txt')
+
+# H = get_XXZ_vumps('Vec',0.5,10)
 
 chi_CA = len(H)
 chi_mpo = get_chi_mpo_vumps('input-vumps/ising_RepZ2_shapes.txt', chi_CA)
+# chi_mpo = get_chi_mpo_vumps('input-vumps/XXZ_Vec_shapes.txt', chi_CA)
+
+
 d = {(0, 0) : 1, (0, 1) : 1, (1, 0) : 1, (1, 1) : 1}
+# d = {(0, 0) : 2, (0, 1) : 2, (1, 0) : 2, (1, 1) : 2}
+# d = {(0, 0) : 2}
+
 
 allowed_module_pairs, allowed_vertical_module_pairs = get_allowed_module_pairs_from_H_vumps(H)
 print(allowed_module_pairs, allowed_vertical_module_pairs)
@@ -22,9 +30,9 @@ allowed_module_pairs_sorted = sorted(allowed_module_pairs)
 modules = {M for pair in allowed_module_pairs for M in pair} # unique module labels
 modules_sorted = sorted(modules)
 
-# CHI_CONST = 8
-# chi = {M: CHI_CONST for M in modules} # Can be made uniform
-chi = {0: 7, 1: 8}
+CHI_CONST = 8
+chi = {M: CHI_CONST for M in modules} # Can be made uniform
+# chi = {0: 7, 1: 8}
 
 mps = get_random_mps_site(d, chi, allowed_module_pairs)
 
@@ -489,4 +497,4 @@ def run_vumps(n_iter, H):
         print(f"i={i}")
         A_L, A_R, C = vumps_iteration(A_L, A_R, C, H)
 
-run_vumps(10, H)
+run_vumps(40, H)

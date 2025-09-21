@@ -7,6 +7,7 @@ from util.data_conversion import *
 from util.state_initialisation import *
 from util.gauge_fixing import *
 from util.input_parsing import *
+from util.mpo_constructions import get_XXZ_dmrg
 
 def initialise_env_dims(N):
     env_dims_left = [{} for i in range(N - 1)]
@@ -105,7 +106,8 @@ def get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N):
                             right_env[A, C] = oe.contract('ai,bijc,dj,c->abd', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), v_right[B, D])
                         else: 
                             right_env[A, C] += oe.contract('ai,bijc,dj,c->abd', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), v_right[B, D])
-            right_env[A, C] /= np.linalg.norm(right_env[A, C])
+            if np.linalg.norm(right_env[A, C]) != 0: 
+                right_env[A, C] /= np.linalg.norm(right_env[A, C])
         # Regular case (interior of MPS)
         else:
             for A, C in allowed_vertical_module_pairs:
@@ -115,7 +117,8 @@ def get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N):
                             right_env[A, C] = oe.contract('aib,cijd,ejf,bdf->ace', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), right_envs[i+1][B, D])
                         else:
                             right_env[A, C] += oe.contract('aib,cijd,ejf,bdf->ace', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), right_envs[i+1][B, D])
-            right_env[A, C] /= np.linalg.norm(right_env[A, C])
+            if np.linalg.norm(right_env[A, C]) != 0: 
+                right_env[A, C] /= np.linalg.norm(right_env[A, C])
         right_envs[i] = right_env  
     return right_envs 
 
@@ -325,24 +328,33 @@ def run(n_sweeps):
     return energy
 
 
-N = 10
+N = 20
 max_chi_mps = 15
 tolerance_in_S = 1e-4
 opt_path = [(0, 3), (0, 3), (0, 2), (0, 1)]
 
-module_name = "RepPsiA4"
-labels_file = f"input/mpoHam_A4/{module_name}_ind.txt"
-values_file = f"input/mpoHam_A4/{module_name}_converted_var.txt"
-size_file = f"input/mpoHam_A4/{module_name}_size.txt"
-H, d = get_H_and_d_from_files(N, labels_file, values_file, size_file)
+# module_name = "RepPsiA4"
+# labels_file = f"input/mpoHam_A4/{module_name}_ind.txt"
+# values_file = f"input/mpoHam_A4/{module_name}_converted_var.txt"
+# size_file = f"input/mpoHam_A4/{module_name}_size.txt"
+# H, d = get_H_and_d_from_files(N, labels_file, values_file, size_file)
+module_name = 'Rep(Uq(sl(2)))'
+H_local = get_XXZ_dmrg(module_name, 1.01, 3)
+H = [H_local for i in range(N)]
+d = get_d_from_H(H)
 
 allowed_module_pairs, allowed_vertical_module_pairs = get_allowed_module_pairs_from_H(H)
 chi_mpo = get_chi_mpo(allowed_vertical_module_pairs, H)
-boundary_modules_left = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
-boundary_modules_right = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
-
 modules = {M for pair in allowed_module_pairs for M in pair} # unique module labels
 modules_sorted = sorted(modules)
+
+# A4
+# boundary_modules_left = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
+# boundary_modules_right = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
+
+# XXZ CZX symmetry
+boundary_modules_left = [(0, 0)] # top, bottom
+boundary_modules_right = [(M, M) for M in modules_sorted] # top, bottom
 
 mps = get_random_mps(N, d, max_chi_mps, allowed_module_pairs)
 chi = get_chi_from_mps(N, mps)
@@ -356,7 +368,7 @@ v_left, v_right = get_boundary_vectors(chi_mpo, chi_mpo, allowed_vertical_module
 right_envs = get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N)
 left_envs = [{pair : None for pair in allowed_vertical_module_pairs} for i in range(N)]
 
-run(1)
+# run(1)
 
 
 
