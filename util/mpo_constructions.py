@@ -42,18 +42,21 @@ def get_XXZ_dmrg(module_category_name,q,trunc):
         for A, B in product(range(nM), repeat = 2):
             if abs(A - B) != 1:
                 continue
-            T_dict[A,B,A,B] = np.zeros((3,1,1,3))
+            if (A,B,A,B) not in T_dict:
+                T_dict[A,B,A,B] = np.zeros((3,1,1,3))
             T_dict[A,B,A,B][0,0,0,0] = 1
             T_dict[A,B,A,B][2,0,0,2] = 1
             for D in range(nM):
                 if abs(A - D) != 1:
                     continue
-                T_dict[A,B,A,D] = np.zeros((3,1,1,3))
+                if (A,B,A,D) not in T_dict:
+                    T_dict[A,B,A,D] = np.zeros((3,1,1,3))
                 T_dict[A,B,A,D][0,0,0,1] = calcF(A,1,2,D,B,1,q**2)
             for C in range(nM):
                 if abs(B - C) != 1:
                     continue
-                T_dict[A,B,C,B] = np.zeros((3,1,1,3))
+                if (A,B,C,B) not in T_dict:
+                    T_dict[A,B,C,B] = np.zeros((3,1,1,3))
                 T_dict[A,B,C,B][1,0,0,2] = calcF(A,2,1,B,C,1,q**2)
 
     elif module_category_name == "Vec":
