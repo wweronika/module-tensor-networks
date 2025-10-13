@@ -31,3 +31,6 @@ coverage.xml
 venv/
 ENV/
 env/
+
+# Plots
+plots_local_energy/

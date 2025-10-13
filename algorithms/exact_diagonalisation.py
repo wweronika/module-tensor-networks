@@ -33,8 +33,8 @@ def get_boundary_vectors(chi_left, chi_right, allowed_vertical_module_pairs, bou
 N = 3
 n_mod = 5
 q = 1.1
-# module_name = 'Rep(Uq(sl(2)))'
-module_name = 'Vec'
+module_name = 'Rep(Uq(sl(2)))'
+# module_name = 'Vec'
 H_local = get_XXZ_dmrg(module_name, q, n_mod)
 H = [H_local for i in range(N)]
 d = 2
@@ -87,7 +87,7 @@ print(np.linalg.norm(H_2_site_matrix))
 
 
 eigenvalues, eigenvectors = np.linalg.eig(H_2_site_matrix)
-print(np.abs(eigenvalues))
+print(set(np.abs(eigenvalues)))
 
 eigenvalues, eigenvectors = np.linalg.eig(H_3_site_matrix)
-print(np.abs(eigenvalues))
+print(set(np.abs(eigenvalues)))

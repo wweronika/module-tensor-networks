@@ -37,6 +37,26 @@ def get_random_mps(N, d_dict, max_bond_dim, allowed_module_pairs):
             mps[i+1][module_pair] = A
     return mps
 
+# Generate a random mMPS given the maximum bond dimension and a set of boundary conditions.
+# The bond dimensions only vary with the site number and are the same for all module labels.
+def get_random_mps(N, d_dict, max_bond_dim, allowed_module_pairs):
+    mps = [{} for i in range(N)]
+    for module_pair in allowed_module_pairs:
+
+        d = d_dict[module_pair]
+        A_leftmost = np.random.rand(d, max(d, 2)) + 1.0j * np.random.rand(d, max(d, 2))
+        A_rightmost = np.random.rand(max(d, 2), d) + 1.0j * np.random.rand(max(d, 2), d)
+
+        mps[0][module_pair] = A_leftmost
+        mps[N-1][module_pair] = A_rightmost
+
+        bond_dim_pairs = generate_bond_dim_pairs(N-2, d, max_bond_dim)
+
+        for i, (bond_dim_L, bond_dim_R) in enumerate(bond_dim_pairs):
+            A = np.random.rand(bond_dim_L, d, bond_dim_R) + 1.0j *  np.random.rand(bond_dim_L, d, bond_dim_R)
+            mps[i+1][module_pair] = A
+    return mps
+
 # Get a single random mMPS tensor given physical dimensions d[A, B] and chi[A] at the single site
 def get_random_mps_site(d, chi, allowed_module_pairs):
     mps = {}
