@@ -31,3 +31,6 @@ coverage.xml
 venv/
 ENV/
 env/
+
+# Plot images
+plots/

@@ -131,6 +131,12 @@ def get_tensor_shape_for_module_quadruple(indices_list, max_tensor_size_tuple):
     
     return max_dim_map
 
+def get_d_from_H(H_local):
+    d = {}
+    for (A, B, C, D) in H_local.keys():
+        d[A, B] = H_local[A, B, C, D].shape[1]
+    return d
+
 def get_allowed_module_pairs_from_H(H):
     allowed_module_pairs = set() # Horizontal, i.e. along the MPS
     allowed_vertical_module_pairs = set() # Vertical, i.e. across the virtual bond of the MPO

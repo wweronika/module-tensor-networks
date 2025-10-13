@@ -197,7 +197,7 @@ def apply_effective_H(A_vec, i_bond, left_env, right_env, H_local_1, H_local_2, 
     vec = two_site_mps_all_B_dict_to_vec(result_dict, i_bond, modules_sorted, chi, d, N)
     return vec
 
-def optimise_site_pair(i, is_moving_right):
+def optimise_site_pair(i, is_moving_right, save_entanglement_spectra):
 
     global modules, modules_sorted, chi, d, env_dims_left, env_dims_right, left_envs, right_envs, H, mps, tolerance_in_S, N
 
@@ -235,6 +235,8 @@ def optimise_site_pair(i, is_moving_right):
     # SVD and MPS update performed for each B separately
     start_index = 0
     eigvec_fixed_E = None
+    S_all_modules = []
+
     for E in modules_sorted:
         vec_size_fixed_E = env_dims_left[i][E] * env_dims_right[i][E]
         eigvec_fixed_E = eigvecs[start_index : start_index + vec_size_fixed_E,:]
@@ -249,6 +251,9 @@ def optimise_site_pair(i, is_moving_right):
         N_H = N_H[:max_bond_dim, :]  # Trim rows of V_H
         chi[i][E] =  max_bond_dim # New bond index of beta
         
+        if save_entanglement_spectra:
+            S_all_modules += list(S)
+
         if is_moving_right:
             S_N = np.diag(S) @ N_H
             set_mps_site_to_matrix_fixed_B(mps[i], E, M, modules_sorted, allowed_module_pairs, d, is_left_boundary, False)
@@ -259,8 +264,16 @@ def optimise_site_pair(i, is_moving_right):
             set_mps_site_to_matrix_fixed_B(mps[i], E, M_S, modules_sorted, allowed_module_pairs, d, is_left_boundary, False)
             set_mps_site_to_matrix_fixed_A(mps[i+1], E, N_H, modules_sorted, allowed_module_pairs, d, False, is_right_boundary)
 
+    if save_entanglement_spectra:
+        print(S_all_modules)
+        return S_all_modules
+
 def get_energy_density():
     global modules_sorted, v_left, v_right, modules_sorted, mps, H, N
+    
+    # all_boundary_module_pairs = [(M, M) for M in modules_sorted]
+    # v_left_all_modules, v_right_all_modules = get_boundary_vectors(chi_mpo, chi_mpo, allowed_vertical_module_pairs, all_boundary_module_pairs, all_boundary_module_pairs)
+    
     left_contracted_tensor = {}
     for B, D in product(modules_sorted, repeat=2):
         left_contracted_tensor[B, D] = None
@@ -294,7 +307,67 @@ def get_energy_density():
                 energy += partial_energy
     return energy / (N - 1)
 
-
+def get_local_energy_density(i_bond):
+    global modules_sorted, allowed_vertical_module_pairs, v_left, v_right, mps, chi, chi_mpo, H, N
+    energy = 0
+    left_contracted_tensor = {M: None for M in modules_sorted}
+    all_boundary_module_pairs = [(M, M) for M in modules_sorted]
+    v_left_all_modules, v_right_all_modules = get_boundary_vectors(chi_mpo, chi_mpo, allowed_vertical_module_pairs, all_boundary_module_pairs, all_boundary_module_pairs)
+    for i in range(i_bond):
+        # print(f"i_bond={i_bond}")
+        # print(f"i={i}")
+        new_left_contracted_tensor = {B: np.zeros((chi[i][B], chi[i][B]), dtype=np.complex128) for B in modules_sorted}
+        for B in modules_sorted:
+            for A in modules_sorted:
+                if (A, B) in mps[i].keys():
+                    # print(f"A, B: {A}, {B}")
+                    # print(mps[i][A, B].shape)
+                    # print(new_left_contracted_tensor[B].shape)
+                    # print(chi[i])
+                    if i == 0:
+                        new_left_contracted_tensor[B] += oe.contract('ib,id->bd', mps[i][A, B], mps[i][A, B].conj())
+                    else:
+                        # print(left_contracted_tensor[A].shape)
+                        new_left_contracted_tensor[B] += oe.contract('ac,aib,cid->bd', left_contracted_tensor[A], mps[i][A, B], mps[i][A, B].conj())
+        left_contracted_tensor = new_left_contracted_tensor
+    for A, D in product(modules_sorted, repeat=2):
+        partial_energy = 0
+        for B, C in product(modules_sorted, repeat=2):
+            if A in left_contracted_tensor.keys() and (A, B, A, C) in H[i_bond].keys() and (B, D, C, D) in H[i_bond+1].keys():
+                if i_bond == N - 2: # 2nd site in the pair is the rightmost site
+                    partial_energy += oe.contract('ae,aib,cijd,ejf,bk,dklh,fl,c,h->', 
+                                                left_contracted_tensor[A],
+                                                mps[i_bond][A, B],
+                                                H[i_bond][A, B, A, C],
+                                                mps[i_bond][A, C].conj(),
+                                                mps[i_bond+1][B, D],
+                                                H[i_bond+1][B, D, C, D], 
+                                                mps[i_bond+1][C, D].conj(),
+                                                v_left_all_modules[A, A],
+                                                v_right_all_modules[D, D])
+                elif i_bond == 0: # 1st site in the pair is the leftmost site
+                    partial_energy += oe.contract('ib,cijd,jf,bkg,dklh,flg,c,h->', 
+                                                mps[i_bond][A, B],
+                                                H[i_bond][A, B, A, C],
+                                                mps[i_bond][A, C].conj(),
+                                                mps[i_bond+1][B, D],
+                                                H[i_bond+1][B, D, C, D], 
+                                                mps[i_bond+1][C, D].conj(),
+                                                v_left_all_modules[A, A],
+                                                v_right_all_modules[D, D])
+                else:
+                    partial_energy += oe.contract('ae,aib,cijd,ejf,bkg,dklh,flg,c,h->', 
+                                                left_contracted_tensor[A],
+                                                mps[i_bond][A, B],
+                                                H[i_bond][A, B, A, C],
+                                                mps[i_bond][A, C].conj(),
+                                                mps[i_bond+1][B, D],
+                                                H[i_bond+1][B, D, C, D], 
+                                                mps[i_bond+1][C, D].conj(),
+                                                v_left_all_modules[A, A],
+                                                v_right_all_modules[D, D])
+        energy += partial_energy
+    return energy
 
 def run(n_sweeps):
 
@@ -325,38 +398,38 @@ def run(n_sweeps):
     return energy
 
 
-N = 10
-max_chi_mps = 15
-tolerance_in_S = 1e-4
-opt_path = [(0, 3), (0, 3), (0, 2), (0, 1)]
+# N = 10
+# max_chi_mps = 15
+# tolerance_in_S = 1e-4
+# opt_path = [(0, 3), (0, 3), (0, 2), (0, 1)]
 
-module_name = "RepPsiA4"
-labels_file = f"input/mpoHam_A4/{module_name}_ind.txt"
-values_file = f"input/mpoHam_A4/{module_name}_converted_var.txt"
-size_file = f"input/mpoHam_A4/{module_name}_size.txt"
-H, d = get_H_and_d_from_files(N, labels_file, values_file, size_file)
+# module_name = "RepPsiA4"
+# labels_file = f"input/mpoHam_A4/{module_name}_ind.txt"
+# values_file = f"input/mpoHam_A4/{module_name}_converted_var.txt"
+# size_file = f"input/mpoHam_A4/{module_name}_size.txt"
+# H, d = get_H_and_d_from_files(N, labels_file, values_file, size_file)
 
-allowed_module_pairs, allowed_vertical_module_pairs = get_allowed_module_pairs_from_H(H)
-chi_mpo = get_chi_mpo(allowed_vertical_module_pairs, H)
-boundary_modules_left = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
-boundary_modules_right = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
+# allowed_module_pairs, allowed_vertical_module_pairs = get_allowed_module_pairs_from_H(H)
+# chi_mpo = get_chi_mpo(allowed_vertical_module_pairs, H)
+# boundary_modules_left = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
+# boundary_modules_right = [(0, 0), (1, 1), (2, 2), (3, 3)] # top, bottom
 
-modules = {M for pair in allowed_module_pairs for M in pair} # unique module labels
-modules_sorted = sorted(modules)
+# modules = {M for pair in allowed_module_pairs for M in pair} # unique module labels
+# modules_sorted = sorted(modules)
 
-mps = get_random_mps(N, d, max_chi_mps, allowed_module_pairs)
-chi = get_chi_from_mps(N, mps)
+# mps = get_random_mps(N, d, max_chi_mps, allowed_module_pairs)
+# chi = get_chi_from_mps(N, mps)
 
-env_dims_left, env_dims_right = initialise_env_dims(N)
+# env_dims_left, env_dims_right = initialise_env_dims(N)
 
-put_mps_into_right_canonical_form(mps, modules_sorted, allowed_module_pairs, d, chi, N)
-a = is_right_canonical_form_overall(modules, chi, mps)
-v_left, v_right = get_boundary_vectors(chi_mpo, chi_mpo, allowed_vertical_module_pairs, boundary_modules_left, boundary_modules_right)
+# put_mps_into_right_canonical_form(mps, modules_sorted, allowed_module_pairs, d, chi, N)
+# a = is_right_canonical_form_overall(modules, chi, mps)
+# v_left, v_right = get_boundary_vectors(chi_mpo, chi_mpo, allowed_vertical_module_pairs, boundary_modules_left, boundary_modules_right)
 
-right_envs = get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N)
-left_envs = [{pair : None for pair in allowed_vertical_module_pairs} for i in range(N)]
+# right_envs = get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N)
+# left_envs = [{pair : None for pair in allowed_vertical_module_pairs} for i in range(N)]
 
-run(1)
+# run(1)
 
 
 
