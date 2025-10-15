@@ -105,7 +105,8 @@ def get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N):
                             right_env[A, C] = oe.contract('ai,bijc,dj,c->abd', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), v_right[B, D])
                         else: 
                             right_env[A, C] += oe.contract('ai,bijc,dj,c->abd', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), v_right[B, D])
-            right_env[A, C] /= np.linalg.norm(right_env[A, C])
+            if np.linalg.norm(right_env[A, C]) != 0:
+                right_env[A, C] /= np.linalg.norm(right_env[A, C])
         # Regular case (interior of MPS)
         else:
             for A, C in allowed_vertical_module_pairs:
@@ -115,7 +116,8 @@ def get_right_environments(mps, v_right, H, allowed_vertical_module_pairs, N):
                             right_env[A, C] = oe.contract('aib,cijd,ejf,bdf->ace', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), right_envs[i+1][B, D])
                         else:
                             right_env[A, C] += oe.contract('aib,cijd,ejf,bdf->ace', mps[i+1][A, B], H[i+1][A, B, C, D], mps[i+1][C, D].conj(), right_envs[i+1][B, D])
-            right_env[A, C] /= np.linalg.norm(right_env[A, C])
+            if np.linalg.norm(right_env[A, C]) != 0:
+                right_env[A, C] /= np.linalg.norm(right_env[A, C])
         right_envs[i] = right_env  
     return right_envs 
 

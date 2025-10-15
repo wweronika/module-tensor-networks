@@ -49,8 +49,8 @@ def main():
     p.add_argument("--boundary_modules_left",  type=str, required=True)   # JSON: [[m,m],...]
     p.add_argument("--boundary_modules_right", type=str, required=True)   # JSON: [[m,m],...]
     p.add_argument("--n_sweeps", type=int, required=True)
-    p.add_argument("--q", type=float, required=True)
-    p.add_argument("--n_irreps", type=int, required=True)
+    p.add_argument("--q", type=float, required=False)
+    p.add_argument("--n_irreps", type=int, required=False)
     p.add_argument("--save_entanglement_spectra", type=bool, required=True)
     args = p.parse_args()
  
@@ -124,7 +124,10 @@ def main():
                     plt.title("Entanglement spectrum")
                     plt.xlabel("index")
                     plt.ylabel("S eigenvalue")
-                    plt.savefig(f"plots/N_{args.N}_H_name_{args.H_name}_module_name_{args.module_name}_bcl_{args.boundary_modules_left}_bcr_{args.boundary_modules_right}.png")
+                    if args.H_name == "quantum_group_XXZ":
+                        plt.savefig(f"plots/N_{args.N}_H_name_{args.H_name}_module_name_{args.module_name}_bcl_{args.boundary_modules_left}_bcr_{args.boundary_modules_right}_q_{args.q}_n_irreps_{args.n_irreps}.png")
+                    elif args.H_name == "A4_XXZ":
+                        plt.savefig(f"plots/N_{args.N}_H_name_{args.H_name}_module_name_{args.module_name}_bcl_{args.boundary_modules_left}_bcr_{args.boundary_modules_right}.png")
             else: 
                 dmrg.optimise_site_pair(i, is_moving_right=False, save_entanglement_spectra=False)
         total_time += (datetime.now() - t0)
