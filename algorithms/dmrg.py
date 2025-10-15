@@ -382,12 +382,12 @@ def run(n_sweeps):
         for i in range(N-1):
             print(f"Updating site {i}, sweeping right")
             update_left_environment(i)
-            optimise_site_pair(i, is_moving_right=True)
+            optimise_site_pair(i, is_moving_right=True, save_entanglement_spectra=False)
 
         # Sweep from right to left (i-2 to 0 inclusive)
         for i in range(N-2, -1, -1):
             update_right_environment(i+1)
-            optimise_site_pair(i, is_moving_right=False)
+            optimise_site_pair(i, is_moving_right=False, save_entanglement_spectra=False)
         
         t1 = datetime.now()
 
@@ -405,7 +405,7 @@ def run(n_sweeps):
 # tolerance_in_S = 1e-4
 # opt_path = [(0, 3), (0, 3), (0, 2), (0, 1)]
 
-# module_name = "RepPsiA4"
+# module_name = "repPsiA4"
 # labels_file = f"input/mpoHam_A4/{module_name}_ind.txt"
 # values_file = f"input/mpoHam_A4/{module_name}_converted_var.txt"
 # size_file = f"input/mpoHam_A4/{module_name}_size.txt"
